@@ -89,23 +89,26 @@ def get_status(cheque_id: str, api_key: str = Depends(verify_api_key)):
 def custom_openapi():
     if app.openapi_schema:
         return app.openapi_schema
+
     openapi_schema = get_openapi(
         title="E-Cheque API",
         version="1.0.0",
         description="E-Cheque Management System",
         routes=app.routes,
     )
+
+    # Correctly define the security scheme manually
     openapi_schema["components"]["securitySchemes"] = {
         "APIKeyHeader": {
-            "type": SecuritySchemeType.apiKey,
-            "in": APIKeyIn.header,
+            "type": "apiKey",
+            "in": "header",
             "name": "x_api_key"
         }
     }
+
     for path in openapi_schema["paths"].values():
-        for method in path.values():
-            method["security"] = [{"APIKeyHeader": []}]
+        for operation in path.values():
+            operation["security"] = [{"APIKeyHeader": []}]
+
     app.openapi_schema = openapi_schema
     return app.openapi_schema
-
-app.openapi = custom_openapi
