@@ -20,7 +20,7 @@ AUTHORIZED_KEYS = {
 }
 
 # API Key Validator
-def verify_api_key(x_api_key: str = Header(...)):
+def verify_api_key(x_api_key: str = Header(..., convert_underscores=False)):
     if x_api_key not in AUTHORIZED_KEYS:
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
     return x_api_key
