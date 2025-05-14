@@ -1,10 +1,19 @@
-from fastapi import FastAPI, HTTPException, Path
+# Generate updated main.py with API key authentication added to all routes
+
+secure_main_code = '''from fastapi import FastAPI, HTTPException, Path, Request, Depends
 from pydantic import BaseModel
 from datetime import date, datetime
 from typing import Dict
 import uuid
 
 app = FastAPI()
+
+API_KEY = "chekee-secret-key"
+
+def verify_api_key(request: Request):
+    key = request.headers.get("x-api-key")
+    if key != API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
 
 cheques: Dict[str, dict] = {}
 
@@ -20,7 +29,7 @@ class ChequeSignRequest(BaseModel):
     otp: str
 
 @app.post("/echeques/issue")
-def issue_cheque(req: ChequeIssueRequest):
+def issue_cheque(req: ChequeIssueRequest, _: str = Depends(verify_api_key)):
     cheque_id = str(uuid.uuid4())
     cheques[cheque_id] = {
         "id": cheque_id,
@@ -34,7 +43,7 @@ def issue_cheque(req: ChequeIssueRequest):
     return {"cheque_id": cheque_id, "status": "Pending"}
 
 @app.post("/echeques/sign")
-def sign_cheque(req: ChequeSignRequest):
+def sign_cheque(req: ChequeSignRequest, _: str = Depends(verify_api_key)):
     cheque = cheques.get(req.cheque_id)
     if not cheque:
         raise HTTPException(status_code=404, detail="Cheque not found")
@@ -47,7 +56,7 @@ def sign_cheque(req: ChequeSignRequest):
     return {"cheque_id": req.cheque_id, "status": "Signed"}
 
 @app.post("/echeques/{id}/present")
-def present_cheque(id: str = Path(...)):
+def present_cheque(id: str = Path(...), _: str = Depends(verify_api_key)):
     cheque = cheques.get(id)
     if not cheque:
         raise HTTPException(status_code=404, detail="Cheque not found")
@@ -57,7 +66,7 @@ def present_cheque(id: str = Path(...)):
     return {"cheque_id": id, "status": "Cleared"}
 
 @app.post("/echeques/{id}/revoke")
-def revoke_cheque(id: str = Path(...)):
+def revoke_cheque(id: str = Path(...), _: str = Depends(verify_api_key)):
     cheque = cheques.get(id)
     if not cheque:
         raise HTTPException(status_code=404, detail="Cheque not found")
@@ -67,10 +76,17 @@ def revoke_cheque(id: str = Path(...)):
     return {"cheque_id": id, "status": "Cancelled"}
 
 @app.get("/echeques/{id}/status")
-def cheque_status(id: str = Path(...)):
+def cheque_status(id: str = Path(...), _: str = Depends(verify_api_key)):
     cheque = cheques.get(id)
     if not cheque:
         raise HTTPException(status_code=404, detail="Cheque not found")
     if cheque["expiry_date"] < datetime.today().date() and cheque["status"] in ["Pending", "Signed"]:
         cheque["status"] = "Expired"
     return {"cheque_id": id, "status": cheque["status"]}
+'''
+
+secure_main_path = "/mnt/data/main_secure_api_key.py"
+with open(secure_main_path, "w") as f:
+    f.write(secure_main_code)
+
+secure_main_path
