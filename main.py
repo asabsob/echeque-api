@@ -1,6 +1,5 @@
 from fastapi import FastAPI, Header, HTTPException, Depends, Security
 from fastapi.security.api_key import APIKeyHeader
-from fastapi.openapi.models import APIKeyIn, SecuritySchemeType
 from fastapi.openapi.utils import get_openapi
 from pydantic import BaseModel
 from datetime import date
@@ -11,11 +10,11 @@ import logging
 timestamp_format = "%Y-%m-%d %H:%M:%S"
 logging.basicConfig(filename="audit.log", level=logging.INFO, format="%(asctime)s - %(message)s", datefmt=timestamp_format)
 
-# App and DB
+# App and in-memory DB
 app = FastAPI()
 cheques = {}
 
-# API key setup
+# API key security
 AUTHORIZED_KEYS = {
     "bank-abc-key": "Bank ABC",
     "bank-xyz-key": "Bank XYZ"
@@ -27,10 +26,10 @@ async def verify_api_key(x_api_key: str = Security(api_key_header)):
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
     return x_api_key
 
-# Apply API key check globally
+# Global dependency
 app = FastAPI(dependencies=[Depends(verify_api_key)])
 
-# Pydantic model
+# Cheque request model
 class ChequeIssueRequest(BaseModel):
     sender_account: str
     receiver_account: str
@@ -38,7 +37,7 @@ class ChequeIssueRequest(BaseModel):
     cheque_date: date
     expiry_date: date
 
-# API Endpoints
+# ====== ROUTES ======
 
 @app.post("/echeques/issue")
 def issue_cheque(req: ChequeIssueRequest, api_key: str = Depends(verify_api_key)):
@@ -48,8 +47,8 @@ def issue_cheque(req: ChequeIssueRequest, api_key: str = Depends(verify_api_key)
         "sender": req.sender_account,
         "receiver": req.receiver_account,
         "amount": req.amount,
-        "cheque_date": req.cheque_date,
-        "expiry_date": req.expiry_date,
+        "cheque_date": req.cheque_date.isoformat(),
+        "expiry_date": req.expiry_date.isoformat(),
         "status": "Pending"
     }
     logging.info(f"[{AUTHORIZED_KEYS[api_key]}] Issued cheque {cheque_id}")
@@ -85,19 +84,22 @@ def get_status(cheque_id: str, api_key: str = Depends(verify_api_key)):
         raise HTTPException(status_code=404, detail="Cheque not found")
     return {"cheque_id": cheque_id, "status": cheques[cheque_id]["status"]}
 
-# OpenAPI customization for Swagger UI security
+# ✅ New: Get all cheques
+@app.get("/echeques/all")
+def get_all_cheques(api_key: str = Depends(verify_api_key)):
+    return list(cheques.values())
+
+# ====== Swagger UI Security ======
+
 def custom_openapi():
     if app.openapi_schema:
         return app.openapi_schema
-
     openapi_schema = get_openapi(
         title="E-Cheque API",
         version="1.0.0",
         description="E-Cheque Management System",
         routes=app.routes,
     )
-
-    # Correctly define the security scheme manually
     openapi_schema["components"]["securitySchemes"] = {
         "APIKeyHeader": {
             "type": "apiKey",
@@ -105,10 +107,10 @@ def custom_openapi():
             "name": "x_api_key"
         }
     }
-
     for path in openapi_schema["paths"].values():
-        for operation in path.values():
-            operation["security"] = [{"APIKeyHeader": []}]
-
+        for method in path.values():
+            method["security"] = [{"APIKeyHeader": []}]
     app.openapi_schema = openapi_schema
     return app.openapi_schema
+
+app.openapi = custom_openapi
