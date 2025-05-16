@@ -10,7 +10,7 @@ app = FastAPI()
 # ✅ Enable CORS for your Vercel frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://echeque-admin-ui.vercel.app"],  # Use "*" if testing locally
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
