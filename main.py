@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, Path
-from fastapi.middleware.cors import CORSMiddleware  # ✅ Add this line
+from fastapi.middleware.cors import CORSMiddleware  # ✅ CORS import
 from pydantic import BaseModel
 from datetime import date, datetime
 from typing import Dict
@@ -7,17 +7,19 @@ import uuid
 
 app = FastAPI()
 
-# ✅ Allow frontend to access this API
+# ✅ Enable CORS for your Vercel frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://echeque-admin-ui.vercel.app"],  # 👈 Vercel frontend
+    allow_origins=["https://echeque-admin-ui.vercel.app"],  # Use "*" if testing locally
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# In-memory cheque store
 cheques: Dict[str, dict] = {}
 
+# Models
 class ChequeIssueRequest(BaseModel):
     sender_account: str
     receiver_account: str
@@ -29,6 +31,7 @@ class ChequeSignRequest(BaseModel):
     cheque_id: str
     otp: str
 
+# Endpoints
 @app.post("/echeques/issue")
 def issue_cheque(req: ChequeIssueRequest):
     cheque_id = str(uuid.uuid4())
@@ -84,3 +87,7 @@ def cheque_status(id: str = Path(...)):
     if cheque["expiry_date"] < datetime.today().date() and cheque["status"] in ["Pending", "Signed"]:
         cheque["status"] = "Expired"
     return {"cheque_id": id, "status": cheque["status"]}
+
+@app.get("/echeques/all")
+def get_all_cheques():
+    return list(cheques.values())
