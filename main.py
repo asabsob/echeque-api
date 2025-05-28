@@ -94,3 +94,6 @@ def cheque_status(id: str = Path(...)):
     if cheque["expiry_date"] < datetime.today().date() and cheque["status"] in ["Pending", "Signed"]:
         cheque["status"] = "Expired"
     return {"cheque_id": id, "status": cheque["status"]}
+@app.get("/")
+def root():
+    return {"message": "E-Cheque API is live ✅"}
