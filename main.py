@@ -8,7 +8,7 @@ import os
 
 app = FastAPI()
 
-# CORS setup
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -20,14 +20,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# DB setup
-_DB_NAME = os.path.join("/tmp", "cheques.db")
+# SQLite setup in Vercel's writable /tmp directory
+DB_NAME = os.path.join("/tmp", "cheques.db")
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute('''
-        CREATDBE TABLE IF NOT EXISTS cheques (
+        CREATE TABLE IF NOT EXISTS cheques (
             id TEXT PRIMARY KEY,
             sender TEXT,
             receiver TEXT,
@@ -42,7 +42,7 @@ def init_db():
 
 init_db()
 
-# Pydantic models
+# Models
 class ChequeIssueRequest(BaseModel):
     sender_account: str
     receiver_account: str
@@ -54,7 +54,7 @@ class ChequeSignRequest(BaseModel):
     cheque_id: str
     otp: str
 
-# Utility functions
+# Helpers
 def get_cheque(cheque_id):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -111,17 +111,13 @@ def sign_cheque(req: ChequeSignRequest):
     cheque = get_cheque(req.cheque_id)
     if not cheque:
         raise HTTPException(status_code=404, detail="Cheque not found")
-
     if cheque["status"] != "Pending":
         raise HTTPException(status_code=400, detail="Cheque cannot be signed")
-
     if cheque["expiry_date"] < datetime.today().date():
         update_cheque_status(req.cheque_id, "Expired")
         raise HTTPException(status_code=400, detail="Cheque is expired")
-
     if req.otp != "123456":
         raise HTTPException(status_code=403, detail="Invalid OTP")
-
     update_cheque_status(req.cheque_id, "Signed")
     return {"cheque_id": req.cheque_id, "status": "Signed"}
 
