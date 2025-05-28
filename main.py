@@ -21,13 +21,13 @@ app.add_middleware(
 )
 
 # DB setup
-DB_NAME = "cheques.db"
+_DB_NAME = os.path.join("/tmp", "cheques.db")
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute('''
-        CREATE TABLE IF NOT EXISTS cheques (
+        CREATDBE TABLE IF NOT EXISTS cheques (
             id TEXT PRIMARY KEY,
             sender TEXT,
             receiver TEXT,
